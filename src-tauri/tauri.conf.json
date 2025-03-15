@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "5ire",
+  "version": "0.9.8",
+  "identifier": "app.5ire.desktop",
+  "build": {
+    "frontendDist": "../release/app/dist/renderer",
+    "devUrl": "http://localhost:1212/dist",
+    "beforeDevCommand": "npx cross-env NODE_ENV=development TAURI_DEV=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
+    "beforeBuildCommand": "npm run build:renderer"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "5ire",
+        "width": 1024,
+        "height": 768,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -24,6 +24,7 @@
     "start:main": "cross-env NODE_ENV=development DEBUG=5ire:* NODE_OPTIONS=\"--import tsx\" electronmon .",
     "start:preload": "cross-env NODE_ENV=development DEBUG=5ire:* webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development DEBUG=5ire:* webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
+    "tauri:preload": "cross-env NODE_ENV=development webpack --config ./.erb/configs/webpack.config.preload.dev.ts --watch",
     "test": "jest"
   },
   "browserslist": [],
@@ -99,6 +100,7 @@
     "@sentry/react": "^7.74.0",
     "@supabase/supabase-js": "^2.38.5",
     "@svgr/webpack": "^8.0.1",
+    "@tauri-apps/cli": "^2.3.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^14.0.0",

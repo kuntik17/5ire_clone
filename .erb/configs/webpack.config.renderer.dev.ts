@@ -23,6 +23,9 @@ const skipDLLs =
   module.parent?.filename.includes('webpack.config.renderer.dev.dll') ||
   module.parent?.filename.includes('webpack.config.eslint');
 
+// Check if we're running in Tauri development mode
+const isTauriDev = process.env.TAURI_DEV === 'true';
+
 /**
  * Warn if the DLL is not built
  */
@@ -32,8 +35,8 @@ if (
 ) {
   console.log(
     chalk.black.bgYellow.bold(
-      'The DLL files are missing. Sit back while we build them for you with "npm run build-dll"'
-    )
+      'The DLL files are missing. Sit back while we build them for you with "npm run build-dll"',
+    ),
   );
   execSync('npm run postinstall');
 }
@@ -43,7 +46,8 @@ const configuration: webpack.Configuration = {
 
   mode: 'development',
 
-  target: ['web', 'electron-renderer'],
+  // Use 'web' target when running with Tauri
+  target: isTauriDev ? ['web'] : ['web', 'electron-renderer'],
 
   entry: [
     `webpack-dev-server/client?http://localhost:${port}/dist`,
@@ -80,7 +84,7 @@ const configuration: webpack.Configuration = {
       },
       {
         test: /\.s?css$/,
-        use: ['style-loader', 'css-loader', 'sass-loader', 'postcss-loader'],
+        use: ['style-loader', 'css-loader', 'sass-loader'],
         exclude: /\.module\.s?(c|a)ss$/,
       },
       // Fonts
@@ -114,38 +118,10 @@ const configuration: webpack.Configuration = {
       },
     ],
   },
+
   plugins: [
-    ...(skipDLLs
-      ? []
-      : [
-          new webpack.DllReferencePlugin({
-            context: webpackPaths.dllPath,
-            manifest: require(manifest),
-            sourceType: 'var',
-          }),
-        ]),
+    new HotModuleReplacementPlugin(),
 
-    new webpack.NoEmitOnErrorsPlugin(),
-
-    /**
-     * Create global constants which can be configured at compile time.
-     *
-     * Useful for allowing different behaviour between development builds and
-     * release builds
-     *
-     * NODE_ENV should be production so that modules do not perform certain
-     * development checks
-     *
-     * By default, use 'development' as NODE_ENV. This can be overriden with
-     * 'staging', for example, by changing the ENV variables in the npm scripts
-     */
-    new webpack.EnvironmentPlugin({
-      NODE_ENV: 'development',
-    }),
-
-    new webpack.LoaderOptionsPlugin({
-      debug: true,
-    }),
     new ReactRefreshWebpackPlugin(),
 
     new HtmlWebpackPlugin({
@@ -181,29 +157,43 @@ const configuration: webpack.Configuration = {
     },
     setupMiddlewares(middlewares) {
       console.log('Starting preload.js builder...');
-      const preloadProcess = spawn('npm', ['run', 'start:preload'], {
-        shell: true,
-        stdio: 'inherit',
-      })
-        .on('close', (code: number) => process.exit(code!))
-        .on('error', (spawnError) => console.error(spawnError));
 
-      let args = ['run', 'start:main', 'DEBUG=5ire:*'];
-      if (process.env.MAIN_ARGS) {
-        args = args.concat(
-          ['--', ...process.env.MAIN_ARGS.matchAll(/"[^"]+"|[^\s"]+/g)].flat()
-        );
+      // Only start Electron processes if not in Tauri development mode
+      if (!isTauriDev) {
+        const preloadProcess = spawn('npm', ['run', 'start:preload'], {
+          shell: true,
+          stdio: 'inherit',
+        })
+          .on('close', (code: number) => process.exit(code!))
+          .on('error', (spawnError) => console.error(spawnError));
+
+        let args = ['run', 'start:main', 'DEBUG=5ire:*'];
+        if (process.env.MAIN_ARGS) {
+          args = args.concat(
+            [
+              '--',
+              ...process.env.MAIN_ARGS.matchAll(/"[^"]+"|[^\s"]+/g),
+            ].flat(),
+          );
+        }
+
+        spawn('npm', args, {
+          shell: true,
+          stdio: 'inherit',
+        })
+          .on('close', (code: number) => {
+            preloadProcess.kill();
+            process.exit(code!);
+          })
+          .on('error', (spawnError) => console.error(spawnError));
+      } else {
+        // For Tauri, just start the preload process
+        spawn('npm', ['run', 'start:preload'], {
+          shell: true,
+          stdio: 'inherit',
+        });
       }
 
-      spawn('npm', args, {
-        shell: true,
-        stdio: 'inherit',
-      })
-        .on('close', (code: number) => {
-          preloadProcess.kill();
-          process.exit(code!);
-        })
-        .on('error', (spawnError) => console.error(spawnError));
       return middlewares;
     },
   },
